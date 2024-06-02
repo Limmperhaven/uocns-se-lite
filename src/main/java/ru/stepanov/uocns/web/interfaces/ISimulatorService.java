@@ -9,6 +9,7 @@ public interface ISimulatorService {
     String CIRCULANT_OPTIMAL = "/simulator/circulant/optimal";
     String CIRCULANT = "/simulator/circulant";
     String TORUS = "/simulator/torus";
+    String CUSTOM = "/simulator/mesh";
 
     String MESH_TOPOLOGY = "Mesh";
     String TORUS_TOPOLOGY = "Torus";
@@ -22,4 +23,6 @@ public interface ISimulatorService {
     MeshResponse mesh(MeshRequest request) throws CommonException;
 
     TorusResponse torus(TorusRequest request) throws CommonException;
+
+    CustomResponse custom(String request) throws CommonException;
 }

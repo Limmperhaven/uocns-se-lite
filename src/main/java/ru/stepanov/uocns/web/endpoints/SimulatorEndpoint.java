@@ -41,4 +41,11 @@ public class SimulatorEndpoint extends AbstractController implements ISimulatorS
     public TorusResponse torus(@RequestBody TorusRequest request) throws CommonException {
         return simulatorService.torus(request);
     }
+
+    @Override
+    @CrossOrigin
+    @RequestMapping(value = CUSTOM, method = RequestMethod.POST, consumes = "application/xml")
+    public CustomResponse custom(@RequestBody String request) throws CommonException {
+        return simulatorService.custom(request);
+    }
 }

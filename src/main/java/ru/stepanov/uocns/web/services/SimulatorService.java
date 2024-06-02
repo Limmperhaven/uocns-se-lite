@@ -212,4 +212,12 @@ public class SimulatorService implements ISimulatorService {
                 .build();
     }
 
+    @Override
+    public CustomResponse custom(String request) throws CommonException {
+        String reportString = fControllerOCNS.simulateAndGetReport(0.25, request);
+        return  CustomResponse.builder()
+                .content(reportString)
+                .build();
+    }
+
 }

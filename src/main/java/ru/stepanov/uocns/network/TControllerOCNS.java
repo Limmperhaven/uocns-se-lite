@@ -14,6 +14,10 @@ import ru.stepanov.uocns.network.common.IConstants;
 import ru.stepanov.uocns.web.services.SimulatorService;
 
 import javax.annotation.PostConstruct;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.UUID;
 
 @Component
 public class TControllerOCNS implements IControllerOCNS {
@@ -179,6 +183,123 @@ public class TControllerOCNS implements IControllerOCNS {
         topologyTable.setContent(topologyTableContent.toString());
 
         objectContext.commitChanges();
+    }
+
+    public String simulateAndGetReport(Double destInjectionRate, String configData) {
+        File tmpFile;
+        TNetworkManager tNetworkManager = null;
+        try {
+            String fileName = "tempFile-" + UUID.randomUUID();
+            tmpFile = File.createTempFile(fileName, ".xml");
+            try (FileWriter writer = new FileWriter(tmpFile)) {
+                writer.write(configData);
+            }
+            tNetworkManager = new TNetworkManager(tmpFile.getAbsolutePath());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        StringBuilder topologyReportContent = new StringBuilder();
+
+        long aCountPercent;
+        tNetworkManager.doNetworkSetupNext(false);
+        tNetworkManager.getUtilities().setRandSeedRandom();
+        IConstants.fConfigNoC.fPacketAvgGenTime = (int) ((double) IConstants.fConfigNoC.fPacketAvgLenght / destInjectionRate);
+        this.ResetPerformanceParameters();
+        long iCountTotal = IConstants.fConfigNoC.fCountPacketRx * (long) IConstants.fConfigNoC.fCountCores;
+        long aCountNextPersent = aCountPercent = iCountTotal / 100 * (long) IConstants.fConfigNoC.fCountRun;
+        int simulationProgress = 0;
+        int iSimulatorRun = 0;
+        while (iSimulatorRun < IConstants.fConfigNoC.fCountRun) {
+            log.error("1");
+            tNetworkManager.doNetworkReset(this);
+            log.error("2");
+            TNetwork iNetwork = tNetworkManager.getNetworkInstance();
+            log.error("3");
+            tNetworkManager.getUtilities().setRandSeedRandom();
+            log.error("4");
+            iNetwork.setInitalEvents(tNetworkManager);
+            log.error("5");
+            int iClock = 0;
+            do {
+                IConstants.fConfigNoC.fCountClocksTotal = iClock;
+                try {
+                    iNetwork.moveTraficTxCore(iClock, tNetworkManager);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                try {
+                    iNetwork.setCrossbarLinks(iClock);
+                } catch (Exception x) {
+                    x.printStackTrace();
+                }
+                try {
+                    iNetwork.moveTraficRxRouter(iClock);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                try {
+                    iNetwork.moveTraficTxRouter(iClock, tNetworkManager);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                try {
+                    iNetwork.doRestorePackets(iClock, tNetworkManager);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                iNetwork.doUpdateStatistic(iClock, tNetworkManager);
+                iNetwork.doPrepareNextClock(iClock);
+                int aCountRx = (int) tNetworkManager.getStatistic().getCountPacketRxTotal();
+                if (aCountRx > 0 && (long) aCountRx / aCountNextPersent > 0) {
+                    ++simulationProgress;
+                    aCountNextPersent += aCountPercent;
+                }
+                ++iClock;
+            } while (simulationProgress < 100);
+            this.fPacketCountTotalTx += (double) tNetworkManager.getStatistic().getCountPacketTxTotal();
+            this.fPacketCountTotalRx += tNetworkManager.getStatistic().getCountPacketRxTotal();
+            this.fPacketCountGenError += tNetworkManager.getStatistic().getCountNewPacketErrAvg();
+            this.fPacketRate += tNetworkManager.getStatistic().getPacketRate();
+            this.fFlitRatePerNode += tNetworkManager.getStatistic().getFlitRatePerNode();
+            this.fCoreInjectionRate += tNetworkManager.getStatistic().getCoreInjectionRate();
+            this.fPacketDelay += tNetworkManager.getStatistic().getCountPacketTimeAvg();
+            this.fPacketCountHop += tNetworkManager.getStatistic().getCountPacketHopAvg();
+            this.fThroughputNetwork += tNetworkManager.getStatistic().getThroughputNetwork();
+            this.fThroughputSwitch += tNetworkManager.getStatistic().getThroughputSwitch();
+            this.fUtilizationCoreBufferRx += tNetworkManager.getStatistic().getUtilizationCoreBufferRxAvg();
+            this.fUtilizationCoreBufferTx += tNetworkManager.getStatistic().getUtilizationCoreBufferTxAvg();
+            this.fUtilizationRouterBufferRx += tNetworkManager.getStatistic().getUtilizationRouterBufferRxAvg();
+            this.fUtilizationRouterBufferTx += tNetworkManager.getStatistic().getUtilizationRouterBufferTxAvg();
+            this.fUtilizationNetworkBuffer += tNetworkManager.getStatistic().getUtilizationNetworkBufferAvg();
+            this.fUtilizationNetworkPLink += tNetworkManager.getStatistic().getUtilizationNetworkPLinkAvg();
+            ++iSimulatorRun;
+            log.error(Long.toString(tNetworkManager.getStatistic().getCountPacketTxTotal()));
+            log.error(Double.toString(tNetworkManager.getStatistic().getCountPacketRxTotal()));
+            log.error(Double.toString(tNetworkManager.getStatistic().getCountNewPacketErrAvg()));
+            log.error(Double.toString(tNetworkManager.getStatistic().getPacketRate()));
+            log.error(Double.toString(tNetworkManager.getStatistic().getFlitRatePerNode()));
+            log.error(Double.toString(tNetworkManager.getStatistic().getCoreInjectionRate()));
+        }
+        this.fPacketCountTotalRx /= iSimulatorRun;
+        this.fPacketCountTotalTx /= iSimulatorRun;
+        this.fPacketCountGenError /= iSimulatorRun;
+        this.fThroughputNetwork /= iSimulatorRun;
+        this.fThroughputSwitch /= iSimulatorRun;
+        this.fPacketRate /= iSimulatorRun;
+        this.fFlitRatePerNode /= iSimulatorRun;
+        this.fCoreInjectionRate /= iSimulatorRun;
+        this.fPacketDelay /= iSimulatorRun;
+        this.fPacketCountHop /= iSimulatorRun;
+        this.fUtilizationCoreBufferRx /= iSimulatorRun;
+        this.fUtilizationCoreBufferTx /= iSimulatorRun;
+        this.fUtilizationRouterBufferRx /= iSimulatorRun;
+        this.fUtilizationRouterBufferTx /= iSimulatorRun;
+        this.fUtilizationNetworkPLink /= iSimulatorRun;
+        this.fUtilizationNetworkBuffer /= iSimulatorRun;
+
+        topologyReportContent.append(GetPerformanceReport(IConstants.fConfigNoC.fCountClocksTotal));
+
+        return  topologyReportContent.toString();
     }
 
     private String getReportParameter(String aParameterName, String aParameterValue) {
