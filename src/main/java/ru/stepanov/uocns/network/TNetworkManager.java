@@ -1,5 +1,6 @@
 package ru.stepanov.uocns.network;
 
+import org.xml.sax.InputSource;
 import ru.stepanov.uocns.network.common.IConstants;
 import ru.stepanov.uocns.network.common.TNocParameter;
 import ru.stepanov.uocns.network.common.TStatisticalData;
@@ -17,6 +18,12 @@ public class TNetworkManager {
     public TNetworkManager(String aConfigFilePath) {
         fUtilities = new TUtilities();
         fUtilities.doReadConfigFile(aConfigFilePath);
+        fConfigActive = 0;
+    }
+
+    public TNetworkManager(InputSource aConfigInputSource) {
+        fUtilities = new TUtilities();
+        fUtilities.doReadConfigInputSource(aConfigInputSource);
         fConfigActive = 0;
     }
 

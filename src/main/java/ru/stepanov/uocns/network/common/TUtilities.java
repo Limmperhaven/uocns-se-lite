@@ -2,6 +2,7 @@ package ru.stepanov.uocns.network.common;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
+import org.xml.sax.InputSource;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -37,6 +38,50 @@ public class TUtilities {
             DocumentBuilder aDocumentBuilder = aDocumentBuilderFactory.newDocumentBuilder();
             aDocument = aDocumentBuilder.parse(new File(aFileName));
         } catch (Exception e) {
+            return;
+        }
+        Vector<TNocParameter> aVtrNetworkConfig = new Vector<>();
+        Node iNodeChild = aDocument.getFirstChild().getAttributes().item(0);
+        aVtrNetworkConfig.add(new TNocParameter(iNodeChild.getNodeName(), iNodeChild.getNodeValue()));
+        String[] nXmlNodesA = new String[]{"Netlist", "Routing"};
+        int iXmlNodeId = 0;
+        while (iXmlNodeId < nXmlNodesA.length) {
+            iNode = aDocument.getElementsByTagName(nXmlNodesA[iXmlNodeId]).item(0);
+            if (iNode == null) {
+                return;
+            }
+            aVtrNetworkConfig.add(new TNocParameter(iNode.getNodeName(), iNode.getTextContent()));
+            ++iXmlNodeId;
+        }
+        String[] nXmlNodesB = new String[]{"Link", "Traffic", "Simulation"};
+        int iXmlNodeId2 = 0;
+        while (iXmlNodeId2 < nXmlNodesB.length) {
+            iNode = aDocument.getElementsByTagName(nXmlNodesB[iXmlNodeId2]).item(0);
+            if (iNode == null) {
+                return;
+            }
+            int iNodeId = 0;
+            while (iNodeId < iNode.getChildNodes().getLength()) {
+                if ("Parameter".equals(iNode.getChildNodes().item(iNodeId).getNodeName())) {
+                    iNodeChild = iNode.getChildNodes().item(iNodeId).getAttributes().item(0);
+                    aVtrNetworkConfig.add(new TNocParameter(iNodeChild.getNodeName(), iNodeChild.getNodeValue()));
+                }
+                ++iNodeId;
+            }
+            ++iXmlNodeId2;
+        }
+        this.fVtrNetworkParameters.add(aVtrNetworkConfig);
+    }
+
+    public void doReadConfigInputSource(InputSource aConfigInputSource) {
+        Document aDocument;
+        Node iNode;
+        DocumentBuilderFactory aDocumentBuilderFactory = DocumentBuilderFactory.newInstance();
+        try {
+            DocumentBuilder aDocumentBuilder = aDocumentBuilderFactory.newDocumentBuilder();
+            aDocument = aDocumentBuilder.parse(aConfigInputSource);
+        } catch (Exception e) {
+            e.printStackTrace();
             return;
         }
         Vector<TNocParameter> aVtrNetworkConfig = new Vector<>();
